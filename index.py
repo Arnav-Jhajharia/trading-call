@@ -30,6 +30,17 @@ TWILIO_AUTH_TOKEN = os.environ["TWILIO_AUTH_TOKEN"]
 TWILIO_PHONE_NUMBER = '+12513206365'
 
 
+
+@app.route('/generate_twiml', methods=['GET', 'POST'])
+def generate_twiml():
+    text = request.args.get('text')
+    response_xml = f"""
+    <Response>
+        <Say>{text}</Say>
+        <Pause length="5"/>
+    </Response>
+    """
+    return Response(response_xml, mimetype='text/xml')
 # Initialize SQLite database
 def init_db():
     conn = sqlite3.connect('calls.db')
@@ -95,7 +106,7 @@ def place_call(client_id, client_name, to_number, speech_text):
         record=True,
         from_=TWILIO_PHONE_NUMBER,
         to="+919836046413",
-        url="https://demo.twilio.com/docs/voice.xml"
+        url=response_url
     )
     print(call.sid)
     # Simulate placing a call and returning a dummy recording URL
@@ -191,17 +202,7 @@ def process_file(file_path):
             print(f"No phone number found for Client ID: {client_id}")
 
 
-@app.route('/generate_twiml', methods=['GET', 'POST'])
-def generate_twiml():
-    text = request.args.get('text')
-    response_xml = f"""
-    <Response>
-        <Say>{text}</Say>
-        <Pause length="5"/>
-        <Record maxLength="60" action="{url_for('recording_callback', _external=True)}"/>
-    </Response>
-    """
-    return Response(response_xml, mimetype='text/xml')
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5500)
