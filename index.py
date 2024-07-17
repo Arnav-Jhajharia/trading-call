@@ -23,8 +23,8 @@ os.makedirs(AUDIO_FOLDER, exist_ok=True)
 os.makedirs('uploads', exist_ok=True)
 
 # Twilio configuration
-TWILIO_ACCOUNT_SID = os.environ['TWILIO_ACCOUNT_SID']
-TWILIO_AUTH_TOKEN = os.environ['TWILIO_AUTH_TOKEN']
+TWILIO_ACCOUNT_SID = os.environ['TWILIO_ACCOUNT_SID'] 
+TWILIO_AUTH_TOKEN = os.environ["TWILIO_AUTH_TOKEN"]
 
 
 TWILIO_PHONE_NUMBER = '+12513206365'
@@ -188,7 +188,7 @@ def handle_recording_status():
     
     if call_details:
         client_id, client_name, phone_number = call_details
-        cursor.execute('UPDATE calls SET recording_url = ?, success = ? WHERE id = ?', (recording_url ,recording_status, call_sid))
+        cursor.execute('UPDATE calls SET recording_url = ? WHERE id = ?', (recording_url, call_sid))
         conn.commit()
     conn.close()
 
