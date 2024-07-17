@@ -39,7 +39,7 @@ import MoreHorizRoundedIcon from "@mui/icons-material/MoreHorizRounded";
 const fetchData = async (date, setRows) => {
   try {
     const response = await axios.get(
-      `http://127.0.0.1:5500/calls?date=${date}`
+      `https://trading-call.onrender.com/calls?date=${date}`
     );
     const data = response.data.calls.map((call) => ({
       id: call[0],
@@ -292,9 +292,7 @@ export default function OrderTable() {
               <th style={{ width: 120, padding: "12px 6px" }}>Client Name</th>
               <th style={{ width: 120, padding: "12px 6px" }}>Phone Number</th>
               <th style={{ width: 140, padding: "12px 6px" }}>Date</th>
-              <th style={{ width: 200, padding: "12px 6px" }}>
-                Download Status
-              </th>
+              <th style={{ width: 200, padding: "12px 6px" }}>Call Status</th>
               <th style={{ width: 100, padding: "12px 6px" }}>Recordings</th>
             </tr>
           </thead>

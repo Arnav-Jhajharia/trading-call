@@ -49,7 +49,7 @@ export default function InputFileUpload() {
     sleep(4000);
     try {
       const response = await axios.post(
-        "https://trading-call.onrender.com/upload", // Replace with your backend endpoint
+        "http://https://trading-call.onrender.com/upload", // Replace with your backend endpoint
         formData,
         {
           headers: {

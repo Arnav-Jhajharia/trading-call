@@ -43,7 +43,7 @@ def init_db():
             date TEXT,
             time TEXT,
             recording_url TEXT,
-            success TEXT
+            call_status TEXT
         )
     ''')
     conn.commit()
@@ -58,11 +58,13 @@ def save_call_recording(call_sid ,client_id, client_name, phone_number):
     current_date = datetime.now().strftime('%Y-%m-%d')
     current_time = datetime.now().strftime('%H:%M:%S')
     cursor.execute('''
-        INSERT INTO calls (id, client_id, client_name, phone_number, date, time, recording_url, success)
+        INSERT INTO calls (id, client_id, client_name, phone_number, date, time, recording_url, call_status)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ''', (call_sid, client_id, client_name, phone_number, current_date, current_time, "", ""))
     conn.commit()
     conn.close()
+
+
 
 # Function to generate speech text from trade details
 def generate_trade_text(trade):
@@ -89,10 +91,10 @@ def generate_trade_text(trade):
 def place_call(client_id, client_name, to_number, speech_text):
     client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
     recording_status_callback_url = url_for('handle_recording_status', _external=True)
-   
+    status_callback_url = url_for('handle_callback', _external = True)
     response_xml = f"""
     <Response>
-        <Say>{speech_text}</Say>
+        <Say language="en-IN" voice = "Alice">{speech_text}</Say>
         <Pause length="5"/>
     </Response>
     """
@@ -101,9 +103,11 @@ def place_call(client_id, client_name, to_number, speech_text):
         from_=TWILIO_PHONE_NUMBER,
         to="+919875486045",
         twiml=response_xml,
-        recording_status_callback=recording_status_callback_url
+        recording_status_callback=recording_status_callback_url,
+        status_callback=status_callback_url
     )
     print(call.sid)
+    print(call.status)
     # Simulate placing a call and returning a dummy recording URL
     save_call_recording(call.sid, client_id, client_name, to_number)
     # return recording_url
@@ -191,6 +195,25 @@ def handle_recording_status():
     return '', 200  # Return a 200 OK response to Twilio
 
 
+@app.route('/handle_callback', methods=['GET','POST'])
+def handle_callback():
+    call_status = request.form.get('CallStatus')
+    call_sid = request.form.get('CallSid')
+
+    # Fetch call details from the database using the CallSid
+    conn = sqlite3.connect('calls.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT client_id, client_name, phone_number FROM calls WHERE id = ?', (call_sid,))
+    call_details = cursor.fetchone()
+    
+    if call_details:
+        client_id, client_name, phone_number = call_details
+        cursor.execute('UPDATE calls SET call_status = ? WHERE id = ?', (call_status, call_sid))
+        conn.commit()
+    conn.close()
+
+    return '', 200  # Return a 200 OK response to Twilio
+
 # Function to process uploaded CSV
 def process_file(file_path):
     trim_csv_in_place(file_path)
@@ -206,7 +229,7 @@ def process_file(file_path):
         
         if client_phone:
             trade_texts = [generate_trade_text(trade) for index, trade in client_data.iterrows()]
-            speech_text = "Your trades for the day are: " + ". ".join(trade_texts)
+            speech_text = f"This is a call from Om Capital for Client ID {client_id}. I will announce your day's trades and once I am done, please confirm by saying Yes. Your trades for the day are: " + ". ".join(trade_texts)
             recording_url = place_call(client_id, client_name, client_phone, speech_text)
             print(f"Recording saved for Client ID: {client_id}, Phone Number: {client_phone}, URL: {recording_url}")
         else:
