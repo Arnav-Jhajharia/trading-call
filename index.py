@@ -23,31 +23,20 @@ os.makedirs(AUDIO_FOLDER, exist_ok=True)
 os.makedirs('uploads', exist_ok=True)
 
 # Twilio configuration
-TWILIO_ACCOUNT_SID = os.environ["TWILIO_ACCOUNT_SID"]
-TWILIO_AUTH_TOKEN = os.environ["TWILIO_AUTH_TOKEN"]
+TWILIO_ACCOUNT_SID = os.environ['TWILIO_ACCOUNT_SID']
+TWILIO_AUTH_TOKEN = os.environ['TWILIO_AUTH_TOKEN']
 
 
 TWILIO_PHONE_NUMBER = '+12513206365'
 
 
 
-@app.route('/generate_twiml', methods=['GET', 'POST'])
-def generate_twiml():
-    text = request.args.get('text')
-    response_xml = f"""
-    <Response>
-        <Say>{text}</Say>
-        <Pause length="5"/>
-    </Response>
-    """
-    return Response(response_xml, mimetype='text/xml')
-# Initialize SQLite database
 def init_db():
     conn = sqlite3.connect('calls.db')
     cursor = conn.cursor()
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS calls (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id TEXT PRIMARY KEY,
             client_id TEXT,
             client_name TEXT,
             phone_number TEXT,
@@ -63,15 +52,15 @@ def init_db():
 init_db()
 
 # Function to save call recording details to SQLite database
-def save_call_recording(client_id, client_name, phone_number, recording_url):
+def save_call_recording(call_sid ,client_id, client_name, phone_number):
     conn = sqlite3.connect('calls.db')
     cursor = conn.cursor()
     current_date = datetime.now().strftime('%Y-%m-%d')
     current_time = datetime.now().strftime('%H:%M:%S')
     cursor.execute('''
-        INSERT INTO calls (client_id, client_name, phone_number, date, time, recording_url, success)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', (client_id, client_name, phone_number, current_date, current_time, recording_url, ""))
+        INSERT INTO calls (id, client_id, client_name, phone_number, date, time, recording_url, success)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (call_sid, client_id, client_name, phone_number, current_date, current_time, "", ""))
     conn.commit()
     conn.close()
 
@@ -99,20 +88,25 @@ def generate_trade_text(trade):
 # Function to simulate placing a call and return a dummy recording URL
 def place_call(client_id, client_name, to_number, speech_text):
     client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-    response_url = url_for('generate_twiml', _external=True, text=speech_text)
+    recording_status_callback_url = url_for('handle_recording_status', _external=True)
    
-
+    response_xml = f"""
+    <Response>
+        <Say>{speech_text}</Say>
+        <Pause length="5"/>
+    </Response>
+    """
     call = client.calls.create(
         record=True,
         from_=TWILIO_PHONE_NUMBER,
-        to="+919836046413",
-        url=response_url
+        to="+919875486045",
+        twiml=response_xml,
+        recording_status_callback=recording_status_callback_url
     )
     print(call.sid)
     # Simulate placing a call and returning a dummy recording URL
-    recording_url = f'http://dummy.recording.url/{client_id}'
-    save_call_recording(client_id, client_name, to_number, recording_url)
-    return recording_url
+    save_call_recording(call.sid, client_id, client_name, to_number)
+    # return recording_url
 
 # Route to upload file and process
 @app.route('/upload', methods=['POST'])
@@ -176,8 +170,25 @@ def trim_csv_in_place(file_path):
     os.replace(temp_file, file_path)
 
 
-# @app.route('/callback', methods=['POST'])
-# def callback():
+@app.route('/handle_recording_status', methods=['POST'])
+def handle_recording_status():
+    recording_url = request.form.get('RecordingUrl')
+    recording_status = request.form.get('RecordingStatus')
+    call_sid = request.form.get('CallSid')
+
+    # Fetch call details from the database using the CallSid
+    conn = sqlite3.connect('calls.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT client_id, client_name, phone_number FROM calls WHERE id = ?', (call_sid,))
+    call_details = cursor.fetchone()
+    
+    if call_details:
+        client_id, client_name, phone_number = call_details
+        cursor.execute('UPDATE calls SET recording_url = ?, success = ? WHERE id = ?', (recording_url ,recording_status, call_sid))
+        conn.commit()
+    conn.close()
+
+    return '', 200  # Return a 200 OK response to Twilio
 
 
 # Function to process uploaded CSV
@@ -200,6 +211,8 @@ def process_file(file_path):
             print(f"Recording saved for Client ID: {client_id}, Phone Number: {client_phone}, URL: {recording_url}")
         else:
             print(f"No phone number found for Client ID: {client_id}")
+
+
 
 
 
