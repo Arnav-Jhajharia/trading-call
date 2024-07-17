@@ -6,6 +6,7 @@ blinker==1.8.2
 certifi==2024.7.4
 charset-normalizer==3.3.2
 click==8.1.7
+Cython==3.0.10
 decorator==5.1.1
 et-xmlfile==1.1.0
 Flask==3.0.3
@@ -183,9 +184,11 @@ python-dateutil==2.9.0.post0
 pyttsx3==2.90
 pytz==2024.1
 requests==2.32.3
+setuptools==70.3.0
 six==1.16.0
 twilio==9.2.3
 tzdata==2024.1
 urllib3==2.2.2
 Werkzeug==3.0.3
+wheel==0.43.0
 yarl==1.9.4

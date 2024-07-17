@@ -13,8 +13,8 @@ app = Flask(__name__, static_folder='../client/build', static_url_path='/')
 CORS(app)
 
 app.config['UPLOAD_FOLDER'] = 'uploads'
-account_sid = os.environ["TWILIO_ACCOUNT_SID"]
-auth_token = os.environ["TWILIO_AUTH_TOKEN"]
+# account_sid = os.environ["TWILIO_ACCOUNT_SID"]
+# auth_token = os.environ["TWILIO_AUTH_TOKEN"]
 AUDIO_FOLDER = 'audio'
 CLIENT_PHONE_MAPPING_FILE = 'clients_list.csv'  # New mapping file
 
@@ -26,7 +26,7 @@ os.makedirs('uploads', exist_ok=True)
 TWILIO_ACCOUNT_SID = 'your_account_sid'
 TWILIO_AUTH_TOKEN = 'your_auth_token'
 TWILIO_PHONE_NUMBER = 'your_twilio_phone_number'
-TWIML_URL = 'http://your-domain.com/twiml'  # URL to your TwiML instructions
+# TWIML_URL = 'http://your-domain.com/twiml'  # URL to your TwiML instructions
 
 # Initialize SQLite database
 def init_db():
@@ -93,7 +93,7 @@ def place_call(client_id, client_name, to_number, speech_text):
         to="+919875486045",
         url="http://demo.twilio.com/docs/voice.xml",
     )
-    Simulate placing a call and returning a dummy recording URL
+    # Simulate placing a call and returning a dummy recording URL
     recording_url = f'http://dummy.recording.url/{client_id}'
     save_call_recording(client_id, client_name, to_number, recording_url)
     return recording_url
