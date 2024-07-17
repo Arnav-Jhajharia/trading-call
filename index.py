@@ -23,10 +23,12 @@ os.makedirs(AUDIO_FOLDER, exist_ok=True)
 os.makedirs('uploads', exist_ok=True)
 
 # Twilio configuration
-TWILIO_ACCOUNT_SID = 'your_account_sid'
-TWILIO_AUTH_TOKEN = 'your_auth_token'
-TWILIO_PHONE_NUMBER = 'your_twilio_phone_number'
-# TWIML_URL = 'http://your-domain.com/twiml'  # URL to your TwiML instructions
+TWILIO_ACCOUNT_SID = os.environ["TWILIO_ACCOUNT_SID"]
+TWILIO_AUTH_TOKEN = os.environ["TWILIO_AUTH_TOKEN"]
+
+
+TWILIO_PHONE_NUMBER = '+12513206365'
+
 
 # Initialize SQLite database
 def init_db():
@@ -86,13 +88,16 @@ def generate_trade_text(trade):
 # Function to simulate placing a call and return a dummy recording URL
 def place_call(client_id, client_name, to_number, speech_text):
     client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+    response_url = url_for('generate_twiml', _external=True, text=speech_text)
+   
 
     call = client.calls.create(
         record=True,
         from_=TWILIO_PHONE_NUMBER,
-        to="+919875486045",
-        url="http://demo.twilio.com/docs/voice.xml",
+        to="+919836046413",
+        url=response_url
     )
+    print(call.sid)
     # Simulate placing a call and returning a dummy recording URL
     recording_url = f'http://dummy.recording.url/{client_id}'
     save_call_recording(client_id, client_name, to_number, recording_url)
@@ -159,6 +164,11 @@ def trim_csv_in_place(file_path):
     
     os.replace(temp_file, file_path)
 
+
+# @app.route('/callback', methods=['POST'])
+# def callback():
+
+
 # Function to process uploaded CSV
 def process_file(file_path):
     trim_csv_in_place(file_path)
@@ -179,6 +189,19 @@ def process_file(file_path):
             print(f"Recording saved for Client ID: {client_id}, Phone Number: {client_phone}, URL: {recording_url}")
         else:
             print(f"No phone number found for Client ID: {client_id}")
+
+
+@app.route('/generate_twiml', methods=['GET', 'POST'])
+def generate_twiml():
+    text = request.args.get('text')
+    response_xml = f"""
+    <Response>
+        <Say>{text}</Say>
+        <Pause length="5"/>
+        <Record maxLength="60" action="{url_for('recording_callback', _external=True)}"/>
+    </Response>
+    """
+    return Response(response_xml, mimetype='text/xml')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5500)
