@@ -95,7 +95,7 @@ def place_call(client_id, client_name, to_number, speech_text):
         record=True,
         from_=TWILIO_PHONE_NUMBER,
         to="+919836046413",
-        url=response_url
+        url="https://demo.twilio.com/docs/voice.xml"
     )
     print(call.sid)
     # Simulate placing a call and returning a dummy recording URL
