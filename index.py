@@ -101,7 +101,7 @@ def place_call(client_id, client_name, to_number, speech_text):
     call = client.calls.create(
         record=True,
         from_=TWILIO_PHONE_NUMBER,
-        to="+919875486045",
+        to="+919831717029",
         twiml=response_xml,
         recording_status_callback=recording_status_callback_url,
         status_callback=status_callback_url
@@ -230,8 +230,8 @@ def process_file(file_path):
         if client_phone:
             trade_texts = [generate_trade_text(trade) for index, trade in client_data.iterrows()]
             speech_text = f"This is a call from Om Capital for Client ID {client_id}. I will announce your day's trades and once I am done, please confirm by saying Yes. Your trades for the day are: " + ". ".join(trade_texts)
-            recording_url = place_call(client_id, client_name, client_phone, speech_text)
-            print(f"Recording saved for Client ID: {client_id}, Phone Number: {client_phone}, URL: {recording_url}")
+            place_call(client_id, client_name, client_phone, speech_text)
+            print(f"Recording saved for Client ID: {client_id}, Phone Number: {client_phone})
         else:
             print(f"No phone number found for Client ID: {client_id}")
 
