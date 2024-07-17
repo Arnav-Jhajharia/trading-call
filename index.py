@@ -231,7 +231,7 @@ def process_file(file_path):
             trade_texts = [generate_trade_text(trade) for index, trade in client_data.iterrows()]
             speech_text = f"This is a call from Om Capital for Client ID {client_id}. I will announce your day's trades and once I am done, please confirm by saying Yes. Your trades for the day are: " + ". ".join(trade_texts)
             place_call(client_id, client_name, client_phone, speech_text)
-            print(f"Recording saved for Client ID: {client_id}, Phone Number: {client_phone})
+            print(f"Recording saved for Client ID: {client_id}, Phone Number: {client_phone}")
         else:
             print(f"No phone number found for Client ID: {client_id}")
 
