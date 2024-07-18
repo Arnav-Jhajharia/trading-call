@@ -47,6 +47,7 @@ const fetchData = async (date, setRows) => {
       client_name: call[2],
       phone_number: call[3],
       date: call[4],
+      recording: call[6],
       download_status: call[7],
     }));
     setRows(data);
@@ -323,7 +324,7 @@ export default function OrderTable() {
                     variant="soft"
                     size="sm"
                     startDecorator={
-                      row.download_status === "successful" ? (
+                      row.download_status === "completed" ? (
                         <CheckRoundedIcon />
                       ) : row.download_status === "busy" ? (
                         <AutorenewRoundedIcon />
@@ -332,7 +333,7 @@ export default function OrderTable() {
                       )
                     }
                     color={
-                      row.download_status === "successful"
+                      row.download_status === "completed"
                         ? "success"
                         : row.download_status === "busy"
                         ? "warning"
@@ -344,8 +345,12 @@ export default function OrderTable() {
                 </td>
                 <td>
                   <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-                    <Link level="body-xs" component="button">
-                      Download
+                    <Link
+                      href={row.recording}
+                      level="body-xs"
+                      component="button"
+                    >
+                      View
                     </Link>
                     {/* <RowMenu />  */}
                   </Box>

@@ -20,7 +20,7 @@ export default function JoyOrderDashboardTemplate() {
   const handleRetry = async () => {
     try {
       const response = await axios.post(
-        "https://trading-call.onrender.com/upload/retry"
+        "https://trading-call.onrender.com/retry"
       );
       if (response.status === 200) {
         alert("Retry process completed successfully.");
@@ -71,7 +71,7 @@ export default function JoyOrderDashboardTemplate() {
               <Link
                 underline="none"
                 color="neutral"
-                href="/order"
+                href="/calls"
                 aria-label="Home"
               >
                 All calls

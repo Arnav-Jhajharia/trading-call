@@ -10,7 +10,7 @@ function App() {
         {/* <Switch> */}
         <Routes>
           <Route path="/" exact element={<Home />} />
-          <Route path="/order" exact element={<Orders />} />
+          <Route path="/calls" exact element={<Orders />} />
           <Route path="/unsuccessful" exact element={<Unsuccessful />} />
         </Routes>
         {/* </Switch> */}

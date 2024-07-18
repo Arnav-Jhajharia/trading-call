@@ -75,9 +75,9 @@ export default function InputFileUpload() {
       <Button
         style={{ position: "absolute", top: "10px", right: "10px" }}
         variant="outlined"
-        onClick={() => navigate("/order")}
+        onClick={() => navigate("/calls")}
       >
-        Go to orders
+        Go to calls
       </Button>
       <Button
         style={{ width: "15%" }}
