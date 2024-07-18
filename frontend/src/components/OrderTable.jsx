@@ -323,18 +323,18 @@ export default function OrderTable() {
                     variant="soft"
                     size="sm"
                     startDecorator={
-                      row.download_status === "Successful" ? (
+                      row.download_status === "successful" ? (
                         <CheckRoundedIcon />
-                      ) : row.download_status === "Cut in between" ? (
+                      ) : row.download_status === "busy" ? (
                         <AutorenewRoundedIcon />
                       ) : (
                         <BlockIcon />
                       )
                     }
                     color={
-                      row.download_status === "Successful"
+                      row.download_status === "successful"
                         ? "success"
-                        : row.download_status === "Cut in between"
+                        : row.download_status === "busy"
                         ? "warning"
                         : "danger"
                     }
