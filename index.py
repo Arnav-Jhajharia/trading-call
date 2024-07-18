@@ -1,4 +1,3 @@
-
 import sqlite3
 from flask import Flask, request, redirect, url_for, Response, send_from_directory, jsonify
 import pandas as pd
@@ -23,12 +22,11 @@ os.makedirs(AUDIO_FOLDER, exist_ok=True)
 os.makedirs('uploads', exist_ok=True)
 
 # Twilio configuration
-TWILIO_ACCOUNT_SID = os.environ['TWILIO_ACCOUNT_SID'] 
-TWILIO_AUTH_TOKEN = os.environ["TWILIO_AUTH_TOKEN"]
+TWILIO_ACCOUNT_SID = os.environ['TWILIO_ACCOUNT_SID']
+TWILIO_AUTH_TOKEN = os.environ['TWILIO_AUTH_TOKEN']
 
 
 TWILIO_PHONE_NUMBER = '+12513206365'
-
 
 
 def init_db():
@@ -43,7 +41,17 @@ def init_db():
             date TEXT,
             time TEXT,
             recording_url TEXT,
-            call_status TEXT
+            call_status TEXT,
+            speech_text TEXT
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS unsuccessful_calls (
+            id TEXT PRIMARY KEY,
+            client_id TEXT,
+            client_name TEXT,
+            phone_number TEXT,
+            speech_text TEXT
         )
     ''')
     conn.commit()
@@ -52,18 +60,17 @@ def init_db():
 init_db()
 
 # Function to save call recording details to SQLite database
-def save_call_recording(call_sid ,client_id, client_name, phone_number):
+def save_call_recording(call_sid, client_id, client_name, phone_number, speech_text):
     conn = sqlite3.connect('calls.db')
     cursor = conn.cursor()
     current_date = datetime.now().strftime('%Y-%m-%d')
     current_time = datetime.now().strftime('%H:%M:%S')
     cursor.execute('''
-        INSERT INTO calls (id, client_id, client_name, phone_number, date, time, recording_url, call_status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (call_sid, client_id, client_name, phone_number, current_date, current_time, "", ""))
+        INSERT INTO calls (id, client_id, client_name, phone_number, date, time, recording_url, call_status, speech_text)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (call_sid, client_id, client_name, phone_number, current_date, current_time, "", "", speech_text))
     conn.commit()
     conn.close()
-
 
 
 # Function to generate speech text from trade details
@@ -91,10 +98,10 @@ def generate_trade_text(trade):
 def place_call(client_id, client_name, to_number, speech_text):
     client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
     recording_status_callback_url = url_for('handle_recording_status', _external=True)
-    status_callback_url = url_for('handle_callback', _external = True)
+    status_callback_url = url_for('handle_callback', _external=True)
     response_xml = f"""
     <Response>
-        <Say language="en-IN" voice = "Alice">{speech_text}</Say>
+        <Say language="en-IN" voice="Alice">{speech_text}</Say>
         <Pause length="5"/>
     </Response>
     """
@@ -103,14 +110,12 @@ def place_call(client_id, client_name, to_number, speech_text):
         from_=TWILIO_PHONE_NUMBER,
         to="+919875486045",
         twiml=response_xml,
-        recording_status_callback=recording_status_callback_url,
-        status_callback=status_callback_url
+        # recording_status_callback=recording_status_callback_url,
+        # status_callback=status_callback_url
     )
     print(call.sid)
     print(call.status)
-    # Simulate placing a call and returning a dummy recording URL
-    save_call_recording(call.sid, client_id, client_name, to_number)
-    # return recording_url
+    save_call_recording(call.sid, client_id, client_name, to_number, speech_text)
 
 # Route to upload file and process
 @app.route('/upload', methods=['POST'])
@@ -148,8 +153,7 @@ def get_calls():
         query += ' AND client_name LIKE ?'
         params.append(f'%{client}%')
     if successful:
-        # Assuming 'successful' is a boolean indicating if the call was successful
-        query += ' AND success = ?'
+        query += ' AND call_status = ?'
         params.append(successful)
 
     cursor.execute(query, params)
@@ -157,7 +161,6 @@ def get_calls():
 
     conn.close()
 
-    # Convert to JSON and return
     return jsonify({'calls': calls})
 
 # Function to trim CSV in place
@@ -172,7 +175,6 @@ def trim_csv_in_place(file_path):
             writer.writerow(trimmed_row)
     
     os.replace(temp_file, file_path)
-
 
 @app.route('/handle_recording_status', methods=['POST'])
 def handle_recording_status():
@@ -194,8 +196,7 @@ def handle_recording_status():
 
     return '', 200  # Return a 200 OK response to Twilio
 
-
-@app.route('/handle_callback', methods=['GET','POST'])
+@app.route('/handle_callback', methods=['GET', 'POST'])
 def handle_callback():
     call_status = request.form.get('CallStatus')
     call_sid = request.form.get('CallSid')
@@ -203,16 +204,58 @@ def handle_callback():
     # Fetch call details from the database using the CallSid
     conn = sqlite3.connect('calls.db')
     cursor = conn.cursor()
-    cursor.execute('SELECT client_id, client_name, phone_number FROM calls WHERE id = ?', (call_sid,))
+    cursor.execute('SELECT client_id, client_name, phone_number, speech_text FROM calls WHERE id = ?', (call_sid,))
     call_details = cursor.fetchone()
     
     if call_details:
-        client_id, client_name, phone_number = call_details
+        client_id, client_name, phone_number, speech_text = call_details
         cursor.execute('UPDATE calls SET call_status = ? WHERE id = ?', (call_status, call_sid))
         conn.commit()
+
+        if call_status != 'completed':
+            cursor.execute('''
+                INSERT INTO unsuccessful_calls (id, client_id, client_name, phone_number, speech_text)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (call_sid, client_id, client_name, phone_number, speech_text))
+            conn.commit()
+    conn.close()
+    return '', 200  # Return a 200 OK response to Twilio
+
+
+# Route to retry unsuccessful calls
+@app.route('/retry', methods=['POST'])
+def retry_unsuccessful_calls():
+    conn = sqlite3.connect('calls.db')
+    cursor = conn.cursor()
+
+    cursor.execute('SELECT * FROM unsuccessful_calls')
+    unsuccessful_calls = cursor.fetchall()
+
+    for call in unsuccessful_calls:
+        call_sid, client_id, client_name, phone_number, speech_text = call
+        place_call(client_id, client_name, phone_number, speech_text)
+
+        # Remove from unsuccessful_calls table
+        cursor.execute('DELETE FROM unsuccessful_calls WHERE id = ?', (call_sid,))
+        conn.commit()
+
     conn.close()
 
-    return '', 200  # Return a 200 OK response to Twilio
+    return 'Retry process completed.'
+
+@app.route('/unsuccessful', methods=['GET'])
+def get_clients():
+    conn = sqlite3.connect('calls.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT client_id, client_name, phone_number FROM unsuccessful_calls')
+    clients = cursor.fetchall()
+    conn.close()
+
+    client_list = [
+        {"client_id": client[0], "client_name": client[1], "phone_number": client[2]}
+        for client in clients
+    ]
+    return jsonify({'clients': client_list})
 
 # Function to process uploaded CSV
 def process_file(file_path):
@@ -234,11 +277,6 @@ def process_file(file_path):
             print(f"Recording saved for Client ID: {client_id}, Phone Number: {client_phone}")
         else:
             print(f"No phone number found for Client ID: {client_id}")
-
-
-
-
-
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5500)
