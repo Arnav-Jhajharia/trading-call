@@ -137,7 +137,8 @@ export default function OrderTable() {
   const [selected, setSelected] = React.useState([]);
   const [open, setOpen] = React.useState(false);
   const [rows, setRows] = React.useState([]);
-  const [searchDate, setSearchDate] = React.useState("2024-07-17");
+  const currentDate = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
+  const [searchDate, setSearchDate] = React.useState(currentDate);
 
   React.useEffect(() => {
     fetchData(searchDate, setRows);
@@ -212,7 +213,7 @@ export default function OrderTable() {
         }}
       >
         <FormControl sx={{ flex: 1 }} size="sm">
-          <FormLabel>Search for order</FormLabel>
+          <FormLabel>Search for call</FormLabel>
           <Input
             size="sm"
             placeholder="Search"
