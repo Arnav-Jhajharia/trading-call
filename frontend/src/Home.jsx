@@ -60,7 +60,7 @@ export default function InputFileUpload() {
 
       console.log(response.data); // Handle response from server
       if (response.status === 200) {
-        navigate("/order"); // Navigate to orders if upload is successful
+        navigate("/calls"); // Navigate to calls if upload is successful
       }
     } catch (error) {
       // alert("There has been error, please try again");
