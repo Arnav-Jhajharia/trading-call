@@ -110,8 +110,8 @@ def place_call(client_id, client_name, to_number, speech_text):
         from_=TWILIO_PHONE_NUMBER,
         to="+919875486045",
         twiml=response_xml,
-        # recording_status_callback=recording_status_callback_url,
-        # status_callback=status_callback_url
+        recording_status_callback=recording_status_callback_url,
+        status_callback=status_callback_url
     )
     print(call.sid)
     print(call.status)
