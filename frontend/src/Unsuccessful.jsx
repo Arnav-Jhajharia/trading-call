@@ -19,7 +19,9 @@ import OrderTable from "./components/Unsuccessful";
 export default function JoyOrderDashboardTemplate() {
   const handleRetry = async () => {
     try {
-      const response = await axios.post("http://127.0.0.1:5500/retry");
+      const response = await axios.post(
+        "https://trading-call.onrender.com/upload/retry"
+      );
       if (response.status === 200) {
         alert("Retry process completed successfully.");
       } else {
