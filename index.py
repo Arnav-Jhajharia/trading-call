@@ -79,7 +79,7 @@ def generate_trade_text(trade):
     action = 'Bought' if float(trade['Net Qty']) > 0 else 'Sold'
     net_quantity = abs(float(trade['Net Qty']))
     net_price = float(trade['Net Price'])
-    scrip = trade['Scrip Name']
+    scrip = trade['Symbol']
     
     if instrument == 'Equities':
         return f"{action} {net_quantity} shares of {scrip} at {net_price}"
