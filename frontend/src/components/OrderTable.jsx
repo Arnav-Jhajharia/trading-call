@@ -345,7 +345,7 @@ export default function OrderTable() {
                   </Chip>
                 </td>
                 <td>
-                  <Link href={row.recording} level="body-xs" component="button">
+                  <Link href={row.recording} level="body-xs">
                     <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
                       View
                       {/* <RowMenu />  */}
