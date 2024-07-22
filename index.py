@@ -84,7 +84,7 @@ def generate_trade_text(trade):
     if instrument == 'Equities':
         return f"{action} {net_quantity} shares of {scrip} at {net_price}"
     elif instrument == 'Options':
-        option_type = 'call' if trade['Option Type'] == 'Call' else 'put'
+        option_type = 'call' if trade['Option Type'] == 'CE' else 'put'
         strike_price = trade['Strike Price']
         expiry = trade['Ser/Exp']
         return f"{action} {net_quantity} {option_type} contracts at {net_price} of {strike_price} strike price expiring on {expiry}"
