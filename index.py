@@ -265,18 +265,28 @@ def process_file(file_path):
     client_phone_mapping = pd.read_csv(CLIENT_PHONE_MAPPING_FILE)
 
     client_phone_dict = client_phone_mapping.set_index('CODE')['MOBILE'].to_dict()
+    phone_to_clients = {}
 
     for client_id, client_data in data.groupby('Client'):
         client_name = client_data.iloc[0]['Client Name']  # Assuming 'Client Name' is in the CSV
         client_phone = client_phone_dict.get(client_id, None)
-        
+
         if client_phone:
+            if client_phone not in phone_to_clients:
+                phone_to_clients[client_phone] = []
+            phone_to_clients[client_phone].append((client_id, client_name, client_data))
+
+    for phone_number, client_list in phone_to_clients.items():
+        combined_trade_texts = []
+        for client_id, client_name, client_data in client_list:
             trade_texts = [generate_trade_text(trade) for index, trade in client_data.iterrows()]
-            speech_text = f"This is a call from Om Capital for Client ID {client_id}. I will announce your day's trades and once I am done, please confirm by saying Yes. Your trades for the day are: " + ". ".join(trade_texts)
-            place_call(client_id, client_name, client_phone, speech_text)
-            print(f"Recording saved for Client ID: {client_id}, Phone Number: {client_phone}")
-        else:
-            print(f"No phone number found for Client ID: {client_id}")
+            client_trade_text = f"Trades for Client ID {client_id} ({client_name}): " + ". ".join(trade_texts)
+            combined_trade_texts.append(client_trade_text)
+        
+        speech_text = f"This is a call from Om Capital. I will announce your day's trades for multiple clients and once I am done, please confirm by saying Yes. " + " ".join(combined_trade_texts)
+        place_call(client_list[0][0], client_list[0][1], phone_number, speech_text)
+        print(f"Recording saved for Phone Number: {phone_number}, Clients: {', '.join([client[1] for client in client_list])}")
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5500)
