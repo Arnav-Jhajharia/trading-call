@@ -137,7 +137,7 @@ export default function OrderTable() {
   const [selected, setSelected] = React.useState([]);
   const [open, setOpen] = React.useState(false);
   const [rows, setRows] = React.useState([]);
-  const currentDate = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
+  const currentDate = new Date().toISOString().split("T")[0]; // Get current date in YYYY-MM-DD format
   const [searchDate, setSearchDate] = React.useState(currentDate);
 
   React.useEffect(() => {
@@ -345,16 +345,12 @@ export default function OrderTable() {
                   </Chip>
                 </td>
                 <td>
-                  <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-                    <Link
-                      href={row.recording}
-                      level="body-xs"
-                      component="button"
-                    >
+                  <Link href={row.recording} level="body-xs" component="button">
+                    <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
                       View
-                    </Link>
-                    {/* <RowMenu />  */}
-                  </Box>
+                      {/* <RowMenu />  */}
+                    </Box>
+                  </Link>
                 </td>
               </tr>
             ))}
