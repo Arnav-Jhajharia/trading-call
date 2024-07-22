@@ -6,7 +6,7 @@ import csv
 from flask_cors import CORS
 from datetime import datetime
 from twilio.rest import Client
-
+import time
 
 app = Flask(__name__, static_folder='../client/build', static_url_path='/')
 CORS(app)
