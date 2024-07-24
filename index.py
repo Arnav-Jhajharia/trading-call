@@ -283,7 +283,7 @@ def process_file(file_path):
             speech_text = f"This is a call from Om Capital for Client ID {client_id}. I will announce your day's trades and once I am done, please confirm by saying Yes. Your trades for the day are: " + ". ".join(trade_texts)
             place_call(client_id, client_name, phone_number, speech_text)
             print(f"Recording saved for Client ID: {client_id}, Phone Number: {phone_number}")
-            time.sleep(120)  # Sleep for 5 seconds between calls
+            # time.sleep(120)  # Sleep for 5 seconds between calls
 
 
 if __name__ == '__main__':
