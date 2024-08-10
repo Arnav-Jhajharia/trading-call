@@ -257,6 +257,7 @@ def get_clients():
     ]
     return jsonify({'clients': client_list})
 
+# Function to process uploaded CSV
 import time
 
 def process_file(file_path):
@@ -267,24 +268,32 @@ def process_file(file_path):
 
     client_phone_dict = client_phone_mapping.set_index('CODE')['MOBILE'].to_dict()
 
-    # Group by phone number instead of client ID
-    for phone_number, phone_data in data.groupby(lambda x: client_phone_dict.get(data.loc[x, 'Client'], None)):
+    # Create a dictionary to store the last call time for each phone number
+    last_call_time = {}
+
+    for _, row in data.iterrows():
+        client_id = row['Client']
+        client_name = row['Client Name']
+        phone_number = client_phone_dict.get(client_id)
+        
         if phone_number:
-            for i, (_, client_data) in enumerate(phone_data.groupby('Client')):
-                client_id = client_data.iloc[0]['Client']
-                client_name = client_data.iloc[0]['Client Name']
-                print('Phone number', phone_number)
-                trade_texts = [generate_trade_text(trade) for _, trade in client_data.iterrows()]
-                speech_text = f"This is a call from Om Capital for Client ID {client_id}. I will announce your day's trades and once I am done, please confirm by saying Yes. Your trades for the day are: " + ". ".join(trade_texts)
-                
-                place_call(client_id, client_name, phone_number, speech_text)
-                print(f"Recording saved for Client ID: {client_id}, Phone Number: {phone_number}")
-                
-                # Add a delay if there are more calls to this number
-                if i < len(phone_data.groupby('Client')) - 1:
-                    time.sleep(90)  # 90 second delay
+            # Check if we need to add a delay
+            current_time = time.time()
+            if phone_number in last_call_time:
+                time_since_last_call = current_time - last_call_time[phone_number]
+                if time_since_last_call < 90:  # 30 seconds delay
+                    time.sleep(90 - time_since_last_call)
+            
+            trade_text = generate_trade_text(row)
+            speech_text = f"This is a call from Om Capital for Client ID {client_id}. I will announce your day's trades and once I am done, please confirm by saying Yes. Your trade for the day is: {trade_text}"
+            
+            place_call(client_id, client_name, phone_number, speech_text)
+            print(f"Recording saved for Client ID: {client_id}, Phone Number: {phone_number}")
+            
+            # Update the last call time for this phone number
+            last_call_time[phone_number] = time.time()
         else:
-            print(f"No phone number found for Client ID: {client_data.iloc[0]['Client']}")
+            print(f"No phone number found for Client ID: {client_id}")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5500)
