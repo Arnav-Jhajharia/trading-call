@@ -273,7 +273,7 @@ def process_file(file_path):
             for i, (_, client_data) in enumerate(phone_data.groupby('Client')):
                 client_id = client_data.iloc[0]['Client']
                 client_name = client_data.iloc[0]['Client Name']
-                
+                print('Phone number', phone_number)
                 trade_texts = [generate_trade_text(trade) for _, trade in client_data.iterrows()]
                 speech_text = f"This is a call from Om Capital for Client ID {client_id}. I will announce your day's trades and once I am done, please confirm by saying Yes. Your trades for the day are: " + ". ".join(trade_texts)
                 
