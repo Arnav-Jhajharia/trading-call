@@ -4,18 +4,18 @@ import pandas as pd
 import os
 import csv
 from flask_cors import CORS
-from datetime import datetime
+from datetime import datetime, timedelta
 from twilio.rest import Client
-
+import queue
+import threading
+import time
 
 app = Flask(__name__, static_folder='../client/build', static_url_path='/')
 CORS(app)
 
 app.config['UPLOAD_FOLDER'] = 'uploads'
-# account_sid = os.environ["TWILIO_ACCOUNT_SID"]
-# auth_token = os.environ["TWILIO_AUTH_TOKEN"]
 AUDIO_FOLDER = 'audio'
-CLIENT_PHONE_MAPPING_FILE = 'clients_list.csv'  # New mapping file
+CLIENT_PHONE_MAPPING_FILE = 'clients_list.csv'
 
 # Ensure the audio folder and uploads folder exist
 os.makedirs(AUDIO_FOLDER, exist_ok=True)
@@ -24,10 +24,10 @@ os.makedirs('uploads', exist_ok=True)
 # Twilio configuration
 TWILIO_ACCOUNT_SID = os.environ['TWILIO_ACCOUNT_SID']
 TWILIO_AUTH_TOKEN = os.environ['TWILIO_AUTH_TOKEN']
-
-
 TWILIO_PHONE_NUMBER = '+12513206365'
 
+# Create a queue for calls
+call_queue = queue.Queue()
 
 def init_db():
     conn = sqlite3.connect('calls.db')
@@ -59,7 +59,6 @@ def init_db():
 
 init_db()
 
-# Function to save call recording details to SQLite database
 def save_call_recording(call_sid, client_id, client_name, phone_number, speech_text):
     conn = sqlite3.connect('calls.db')
     cursor = conn.cursor()
@@ -72,8 +71,6 @@ def save_call_recording(call_sid, client_id, client_name, phone_number, speech_t
     conn.commit()
     conn.close()
 
-
-# Function to generate speech text from trade details
 def generate_trade_text(trade):
     instrument = trade['Instrument Type']
     action = 'Bought' if float(trade['Net Qty']) > 0 else 'Sold'
@@ -94,7 +91,6 @@ def generate_trade_text(trade):
     else:
         return ""
 
-# Function to simulate placing a call and return a dummy recording URL
 def place_call(client_id, client_name, to_number, speech_text):
     client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
     recording_status_callback_url = url_for('handle_recording_status', _external=True)
@@ -117,23 +113,51 @@ def place_call(client_id, client_name, to_number, speech_text):
     print(call.status)
     save_call_recording(call.sid, client_id, client_name, to_number, speech_text)
 
-# Route to upload file and process
+def process_call_queue():
+    last_call_time = {}
+    while True:
+        call_info = call_queue.get()
+        if call_info is None:
+            break  # Exit the loop if None is enqueued
+
+        client_id, client_name, phone_number, speech_text = call_info
+        
+        # Check if we need to wait before making the call
+        current_time = datetime.now()
+        if phone_number in last_call_time:
+            time_since_last_call = (current_time - last_call_time[phone_number]).total_seconds()
+            if time_since_last_call < 90:
+                wait_time = 90 - time_since_last_call
+                time.sleep(wait_time)
+        
+        # Make the call
+        place_call(client_id, client_name, phone_number, speech_text)
+        print(f"Call made for Client ID: {client_id}, Phone Number: {phone_number}")
+        
+        # Update the last call time for this phone number
+        last_call_time[phone_number] = datetime.now()
+
+        call_queue.task_done()
+
+# Start the background thread for processing calls
+call_thread = threading.Thread(target=process_call_queue, daemon=True)
+call_thread.start()
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
-        return redirect(request.url)
+        return jsonify({"error": "No file part"}), 400
     
     file = request.files['file']
     if file.filename == '':
-        return redirect(request.url)
+        return jsonify({"error": "No selected file"}), 400
     
     if file:
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
         file.save(file_path)
-        process_file(file_path)
-        return 'Processing started. Check logs for details.'
+        result = process_file(file_path)
+        return jsonify({"message": result}), 200
 
-# Route to fetch calls with optional filters
 @app.route('/calls', methods=['GET'])
 def get_calls():
     date = request.args.get('date')
@@ -163,7 +187,6 @@ def get_calls():
 
     return jsonify({'calls': calls})
 
-# Function to trim CSV in place
 def trim_csv_in_place(file_path):
     temp_file = file_path + '.tmp'
     with open(file_path, 'r', newline='') as infile, open(temp_file, 'w', newline='') as outfile:
@@ -182,7 +205,6 @@ def handle_recording_status():
     recording_status = request.form.get('RecordingStatus')
     call_sid = request.form.get('CallSid')
 
-    # Fetch call details from the database using the CallSid
     conn = sqlite3.connect('calls.db')
     cursor = conn.cursor()
     cursor.execute('SELECT client_id, client_name, phone_number FROM calls WHERE id = ?', (call_sid,))
@@ -194,14 +216,13 @@ def handle_recording_status():
         conn.commit()
     conn.close()
 
-    return '', 200  # Return a 200 OK response to Twilio
+    return '', 200
 
 @app.route('/handle_callback', methods=['GET', 'POST'])
 def handle_callback():
     call_status = request.form.get('CallStatus')
     call_sid = request.form.get('CallSid')
 
-    # Fetch call details from the database using the CallSid
     conn = sqlite3.connect('calls.db')
     cursor = conn.cursor()
     cursor.execute('SELECT client_id, client_name, phone_number, speech_text FROM calls WHERE id = ?', (call_sid,))
@@ -219,10 +240,8 @@ def handle_callback():
             ''', (call_sid, client_id, client_name, phone_number, speech_text))
             conn.commit()
     conn.close()
-    return '', 200  # Return a 200 OK response to Twilio
+    return '', 200
 
-
-# Route to retry unsuccessful calls
 @app.route('/retry', methods=['POST'])
 def retry_unsuccessful_calls():
     conn = sqlite3.connect('calls.db')
@@ -233,7 +252,7 @@ def retry_unsuccessful_calls():
 
     for call in unsuccessful_calls:
         call_sid, client_id, client_name, phone_number, speech_text = call
-        place_call(client_id, client_name, phone_number, speech_text)
+        call_queue.put((client_id, client_name, phone_number, speech_text))
 
         # Remove from unsuccessful_calls table
         cursor.execute('DELETE FROM unsuccessful_calls WHERE id = ?', (call_sid,))
@@ -241,7 +260,7 @@ def retry_unsuccessful_calls():
 
     conn.close()
 
-    return 'Retry process completed.'
+    return 'Retry process queued.'
 
 @app.route('/unsuccessful', methods=['GET'])
 def get_clients():
@@ -257,9 +276,6 @@ def get_clients():
     ]
     return jsonify({'clients': client_list})
 
-# Function to process uploaded CSV
-import time
-
 def process_file(file_path):
     trim_csv_in_place(file_path)
 
@@ -268,32 +284,22 @@ def process_file(file_path):
 
     client_phone_dict = client_phone_mapping.set_index('CODE')['MOBILE'].to_dict()
 
-    # Create a dictionary to store the last call time for each phone number
-    last_call_time = {}
-
     for _, row in data.iterrows():
         client_id = row['Client']
         client_name = row['Client Name']
         phone_number = client_phone_dict.get(client_id)
         
         if phone_number:
-            # Check if we need to add a delay
-            current_time = time.time()
-            if phone_number in last_call_time:
-                time_since_last_call = current_time - last_call_time[phone_number]
-                if time_since_last_call < 90:  # 30 seconds delay
-                    time.sleep(90 - time_since_last_call)
-            
             trade_text = generate_trade_text(row)
             speech_text = f"This is a call from Om Capital for Client ID {client_id}. I will announce your day's trades and once I am done, please confirm by saying Yes. Your trade for the day is: {trade_text}"
             
-            place_call(client_id, client_name, phone_number, speech_text)
-            print(f"Recording saved for Client ID: {client_id}, Phone Number: {phone_number}")
-            
-            # Update the last call time for this phone number
-            last_call_time[phone_number] = time.time()
+            # Instead of making the call directly, add it to the queue
+            call_queue.put((client_id, client_name, phone_number, speech_text))
+            print(f"Call queued for Client ID: {client_id}, Phone Number: {phone_number}")
         else:
             print(f"No phone number found for Client ID: {client_id}")
+
+    return f"Processed {len(data)} rows. Calls have been queued."
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5500)
