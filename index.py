@@ -105,6 +105,9 @@ def place_call(client_id, client_name, to_number, speech_text):
         <Pause length="5"/>
     </Response>
     """
+    to_number_str = str(to_number)
+    if len(to_number_str) == 11:
+        to_number_str = to_number_str[:-1]
     call = client.calls.create(
         record=True,
         from_=TWILIO_PHONE_NUMBER,
