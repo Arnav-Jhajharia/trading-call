@@ -257,7 +257,8 @@ def get_clients():
     ]
     return jsonify({'clients': client_list})
 
-# Function to process uploaded CSV
+import time
+
 def process_file(file_path):
     trim_csv_in_place(file_path)
 
@@ -266,17 +267,24 @@ def process_file(file_path):
 
     client_phone_dict = client_phone_mapping.set_index('CODE')['MOBILE'].to_dict()
 
-    for client_id, client_data in data.groupby('Client'):
-        client_name = client_data.iloc[0]['Client Name']  # Assuming 'Client Name' is in the CSV
-        client_phone = client_phone_dict.get(client_id, None)
-        
-        if client_phone:
-            trade_texts = [generate_trade_text(trade) for index, trade in client_data.iterrows()]
-            speech_text = f"This is a call from Om Capital for Client ID {client_id}. I will announce your day's trades and once I am done, please confirm by saying Yes. Your trades for the day are: " + ". ".join(trade_texts)
-            place_call(client_id, client_name, client_phone, speech_text)
-            print(f"Recording saved for Client ID: {client_id}, Phone Number: {client_phone}")
+    # Group by phone number instead of client ID
+    for phone_number, phone_data in data.groupby(lambda x: client_phone_dict.get(data.loc[x, 'Client'], None)):
+        if phone_number:
+            for i, (_, client_data) in enumerate(phone_data.groupby('Client')):
+                client_id = client_data.iloc[0]['Client']
+                client_name = client_data.iloc[0]['Client Name']
+                
+                trade_texts = [generate_trade_text(trade) for _, trade in client_data.iterrows()]
+                speech_text = f"This is a call from Om Capital for Client ID {client_id}. I will announce your day's trades and once I am done, please confirm by saying Yes. Your trades for the day are: " + ". ".join(trade_texts)
+                
+                place_call(client_id, client_name, phone_number, speech_text)
+                print(f"Recording saved for Client ID: {client_id}, Phone Number: {phone_number}")
+                
+                # Add a delay if there are more calls to this number
+                if i < len(phone_data.groupby('Client')) - 1:
+                    time.sleep(90)  # 90 second delay
         else:
-            print(f"No phone number found for Client ID: {client_id}")
+            print(f"No phone number found for Client ID: {client_data.iloc[0]['Client']}")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5500)
